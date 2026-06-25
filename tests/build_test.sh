@@ -98,7 +98,9 @@ build_project() {
     echo -e "${YELLOW}Building...${NC}"
     cmake --build . -- -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
-    echo -e "${GREEN}Build complete! Artifacts in: $build_dir${NC}"
+    echo -e "${GREEN}Build complete!${NC}"
+    echo "  CLIs  : $build_dir/rfdetr_*"
+    echo "  GTests: $build_dir/tests/"
     cd "$SCRIPT_DIR"
 }
 

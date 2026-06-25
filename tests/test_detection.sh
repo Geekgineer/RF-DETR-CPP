@@ -67,17 +67,18 @@ print_success "Python reference generated: results/results_python.json"
 # Run C++ inference runner
 # ============================================================================
 print_header "Running C++ Inference"
-if [[ ! -x "$SCRIPT_DIR/build/inference_rfdetr_cpp" ]]; then
-    print_error "inference_rfdetr_cpp not found in tests/build/"
+INFERENCE_BIN="$SCRIPT_DIR/build/tests/inference_rfdetr_cpp"
+if [[ ! -x "$INFERENCE_BIN" ]]; then
+    print_error "inference_rfdetr_cpp not found at $INFERENCE_BIN"
     exit 1
 fi
-"$SCRIPT_DIR/build/inference_rfdetr_cpp" models/ data/images/
+"$INFERENCE_BIN" models/ data/images/
 print_success "C++ inference done: results/results_cpp.json"
 
 # ============================================================================
 # Run GTest parity comparison
 # ============================================================================
 print_header "Running Parity Tests (tol: bbox ±2px, conf ±0.002)"
-"$SCRIPT_DIR/build/compare_results" --gtest_color=yes
+"$SCRIPT_DIR/build/tests/compare_results" --gtest_color=yes
 
 print_success "Detection parity tests completed!"

@@ -52,10 +52,11 @@ cd "$SCRIPT_DIR"
 # Run GTest structural tests
 # ============================================================================
 print_header "Running Segmentation GTests"
-if [[ ! -x "$SCRIPT_DIR/build/test_seg" ]]; then
-    print_error "test_seg not found in tests/build/"
+SEG_BIN="$SCRIPT_DIR/build/tests/test_seg"
+if [[ ! -x "$SEG_BIN" ]]; then
+    print_error "test_seg not found at $SEG_BIN"
     exit 1
 fi
-"$SCRIPT_DIR/build/test_seg" --gtest_color=yes
+"$SEG_BIN" --gtest_color=yes
 
 print_success "Segmentation tests completed!"

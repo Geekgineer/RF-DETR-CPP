@@ -56,10 +56,11 @@ cd "$SCRIPT_DIR"
 # Run GTest structural tests
 # ============================================================================
 print_header "Running Keypoint GTests"
-if [[ ! -x "$SCRIPT_DIR/build/test_keypoint" ]]; then
-    print_error "test_keypoint not found in tests/build/"
+KP_BIN="$SCRIPT_DIR/build/tests/test_keypoint"
+if [[ ! -x "$KP_BIN" ]]; then
+    print_error "test_keypoint not found at $KP_BIN"
     exit 1
 fi
-"$SCRIPT_DIR/build/test_keypoint" --gtest_color=yes
+"$KP_BIN" --gtest_color=yes
 
 print_success "Keypoint tests completed!"
