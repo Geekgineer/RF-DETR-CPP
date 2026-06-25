@@ -1,0 +1,53 @@
+# Ignore version control
+.git
+.gitignore
+
+# Ignore Python cache and artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Ignore build artifacts
+build/
+*.o
+*.obj
+*.so
+*.dll
+*.exe
+*.out
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore large media / data files
+*.gif
+*.mp4
+*.avi
+*.pt
+*.pth
+*.weights
+
+# Ignore ONNX Runtime (downloaded in container)
+onnxruntime*/
+
+# Ignore other unnecessary files
+*.log
+*.tgz
+*.zip
+*.rar
+*.7z
+
+# Ignore IDE-specific files
+.idea/
+.vscode/
+
+# Ignore test results
+tests/*/results/
+benchmarks/results/
+
+# Ignore release assets
+release_assets/

@@ -1,0 +1,20 @@
+{
+  "model": "/media/abi/ext_nvme2/abi/geekgineer/rf-detr-cpp/models/rfdetr-base.onnx",
+  "results": [
+    {
+      "image_path": "/media/abi/ext_nvme2/abi/geekgineer/rf-detr-cpp/data/dog.jpg",
+      "inference_results": [
+        {
+          "class_id": 18,
+          "confidence": 0.977164,
+          "bbox": {
+            "left": 0,
+            "top": 53,
+            "width": 265,
+            "height": 275
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,252 @@
+# ============================================================================
+# RFDETRs-CPP — Continuous Integration
+# ============================================================================
+# Jobs:
+#   build-cpu   — compile all targets on Ubuntu 22.04 (CPU-only ORT)
+#   test-suite  — export models + run GTest for each task (matrix)
+#   benchmark   — timing benchmark (manual dispatch only)
+#   lint        — shell + Python syntax checks
+# ============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  ORT_VERSION: "1.20.1"
+  ORT_URL_BASE: "https://github.com/microsoft/onnxruntime/releases/download"
+
+# ============================================================================
+# Build
+# ============================================================================
+jobs:
+  build-cpu:
+    name: Build (Ubuntu 22.04 · CPU)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake libopencv-dev wget ca-certificates
+
+      - name: Cache ONNX Runtime
+        id: cache-ort
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/ort
+          key: onnxruntime-linux-x64-${{ env.ORT_VERSION }}
+
+      - name: Download ONNX Runtime
+        if: steps.cache-ort.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ${{ github.workspace }}/ort
+          wget -q "${{ env.ORT_URL_BASE }}/v${{ env.ORT_VERSION }}/onnxruntime-linux-x64-${{ env.ORT_VERSION }}.tgz" \
+               -O /tmp/ort.tgz
+          tar -xf /tmp/ort.tgz -C ${{ github.workspace }}/ort --strip-components=1
+
+      - name: Configure
+        run: |
+          cmake -B build -S . \
+            -DONNXRUNTIME_DIR=${{ github.workspace }}/ort \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=ON \
+            -DENABLE_WARNINGS=ON
+
+      - name: Build
+        run: cmake --build build --parallel $(nproc)
+
+      - name: Verify binaries exist
+        run: |
+          for bin in rfdetr_image_inference rfdetr_video_inference rfdetr_camera_inference \
+                     rfdetr_batch_inference rfdetr_seg_image_inference \
+                     rfdetr_keypoint_image_inference; do
+            echo -n "  $bin ... "
+            test -f "build/$bin" && echo "OK" || { echo "MISSING"; exit 1; }
+          done
+
+      - name: Upload executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-cpu-${{ github.sha }}
+          retention-days: 1
+          path: |
+            build/rfdetr_image_inference
+            build/rfdetr_video_inference
+            build/rfdetr_camera_inference
+            build/rfdetr_batch_inference
+            build/rfdetr_seg_image_inference
+            build/rfdetr_keypoint_image_inference
+            build/inference_rfdetr_cpp
+            build/compare_results
+            build/unit_tests
+            build/test_seg
+            build/test_keypoint
+            build/test_batch
+            build/test_video
+
+# ============================================================================
+# Test suite (matrix)
+# ============================================================================
+  test-suite:
+    name: Tests — ${{ matrix.task }}
+    needs: build-cpu
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [detection, segmentation, keypoint]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install runtime dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            libopencv-dev python3 python3-pip wget ca-certificates
+
+      - name: Cache ONNX Runtime
+        id: cache-ort
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/ort
+          key: onnxruntime-linux-x64-${{ env.ORT_VERSION }}
+
+      - name: Download ONNX Runtime
+        if: steps.cache-ort.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ${{ github.workspace }}/ort
+          wget -q "${{ env.ORT_URL_BASE }}/v${{ env.ORT_VERSION }}/onnxruntime-linux-x64-${{ env.ORT_VERSION }}.tgz" \
+               -O /tmp/ort.tgz
+          tar -xf /tmp/ort.tgz -C ${{ github.workspace }}/ort --strip-components=1
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-cpu-${{ github.sha }}
+          path: build/
+
+      - name: Make binaries executable
+        run: find build/ -maxdepth 1 -type f | xargs chmod +x
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-rfdetr-onnx-${{ runner.os }}
+
+      - name: Install rfdetr[onnx] + onnxruntime
+        run: pip3 install --quiet "rfdetr[onnx]" onnxruntime
+
+      - name: Run ${{ matrix.task }} tests
+        env:
+          BUILD_DIR: ${{ github.workspace }}/build
+          LD_LIBRARY_PATH: ${{ github.workspace }}/ort/lib
+        run: bash tests/test_${{ matrix.task }}.sh
+
+# ============================================================================
+# Lint
+# ============================================================================
+  lint:
+    name: Lint
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends shellcheck python3
+
+      - name: shellcheck — test scripts
+        run: |
+          find tests/ -name '*.sh' | xargs shellcheck --severity=warning \
+            --exclude=SC1091 \
+            && echo "shellcheck OK"
+
+      - name: Python syntax — scripts
+        run: |
+          find scripts/ tests/ -name '*.py' | \
+            xargs python3 -m py_compile && echo "Python syntax OK"
+
+# ============================================================================
+# Benchmark (manual dispatch only)
+# ============================================================================
+  benchmark:
+    name: Benchmark
+    if: github.event_name == 'workflow_dispatch'
+    needs: build-cpu
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            libopencv-dev python3 python3-pip wget ca-certificates
+
+      - name: Cache ONNX Runtime
+        id: cache-ort
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/ort
+          key: onnxruntime-linux-x64-${{ env.ORT_VERSION }}
+
+      - name: Download ONNX Runtime
+        if: steps.cache-ort.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ${{ github.workspace }}/ort
+          wget -q "${{ env.ORT_URL_BASE }}/v${{ env.ORT_VERSION }}/onnxruntime-linux-x64-${{ env.ORT_VERSION }}.tgz" \
+               -O /tmp/ort.tgz
+          tar -xf /tmp/ort.tgz -C ${{ github.workspace }}/ort --strip-components=1
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-cpu-${{ github.sha }}
+          path: build/
+
+      - name: Make binaries executable
+        run: find build/ -maxdepth 1 -type f | xargs chmod +x
+
+      - name: Install rfdetr[onnx]
+        run: pip3 install --quiet "rfdetr[onnx]"
+
+      - name: Export benchmark model (random weights)
+        run: |
+          mkdir -p tests/detection/models
+          python3 -c "
+import shutil, tempfile, glob
+from rfdetr import RFDETRNano
+m = RFDETRNano(pretrain_weights=None)
+with tempfile.TemporaryDirectory() as tmp:
+    m.export(output_dir=tmp)
+    srcs = glob.glob(tmp + '/**/*.onnx', recursive=True)
+    if not srcs:
+        raise FileNotFoundError('No .onnx after export')
+    shutil.copy2(srcs[0], 'tests/detection/models/rfdetr-nano.onnx')
+print('Exported: tests/detection/models/rfdetr-nano.onnx')
+"
+
+      - name: Run timing benchmark
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/ort/lib
+        run: |
+          MODEL=tests/detection/models/rfdetr-nano.onnx
+          IMAGE=tests/detection/data/images/dog.jpg
+          echo "=== rfdetr_image_inference — 5 runs ==="
+          for i in 1 2 3 4 5; do
+            build/rfdetr_image_inference "$MODEL" "$IMAGE" "" 0.3 300 cpu \
+              2>&1 | grep -Ei "pre=|inf=|post=|total|ms" || true
+          done
