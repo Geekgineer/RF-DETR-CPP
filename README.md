@@ -6,9 +6,8 @@
 
 <div align="center">
 
-[![Stars](https://img.shields.io/github/stars/Geekgineer/RF-DETR-CPP?style=flat-square&logo=github&color=f97316)](https://github.com/Geekgineer/RF-DETR-CPP/stargazers)
-[![Forks](https://img.shields.io/github/forks/Geekgineer/RF-DETR-CPP?style=flat-square&logo=github&color=f97316)](https://github.com/Geekgineer/RF-DETR-CPP/network/members)
-[![CI](https://img.shields.io/github/actions/workflow/status/Geekgineer/RF-DETR-CPP/ci.yml?branch=main&style=flat-square&logo=github-actions&label=CI&color=22c55e)](https://github.com/Geekgineer/RF-DETR-CPP/actions/workflows/ci.yml)
+[![GitHub Stars](https://img.shields.io/badge/stars-★_Star_us!-f97316?style=flat-square&logo=github)](https://github.com/Geekgineer/RF-DETR-CPP/stargazers)
+[![CI](https://github.com/Geekgineer/RF-DETR-CPP/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Geekgineer/RF-DETR-CPP/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square)](LICENSE)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?style=flat-square&logo=cplusplus)](https://en.cppreference.com/w/cpp/17)
 [![ORT](https://img.shields.io/badge/ONNX_Runtime-1.20.1-blueviolet?style=flat-square)](https://github.com/microsoft/onnxruntime/releases/tag/v1.20.1)
@@ -353,7 +352,7 @@ cd tests
 ./test_all.sh
 ```
 
-CI status: [![CI](https://img.shields.io/github/actions/workflow/status/Geekgineer/RF-DETR-CPP/ci.yml?branch=main&style=flat-square&logo=github-actions&label=CI&color=22c55e)](https://github.com/Geekgineer/RF-DETR-CPP/actions/workflows/ci.yml)
+CI status: [![CI](https://github.com/Geekgineer/RF-DETR-CPP/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Geekgineer/RF-DETR-CPP/actions/workflows/ci.yml)
 
 ---
 
