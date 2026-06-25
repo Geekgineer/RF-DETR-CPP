@@ -50,9 +50,9 @@ CPU, CUDA, and TensorRT execution providers are selected at construction time wi
 ## Demo
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/Geekgineer/RF-DETR-CPP/main/data/dog_rfdetr.jpg" alt="RF-DETR detection — dog 0.977" width="60%"/>
+  <img src="data/demo.gif" alt="RF-DETR-CPP demo — detection · segmentation · keypoint" width="60%"/>
   <br/>
-  <sub>RF-DETR Base · dog · conf 0.977 · CPU · 399 ms avg</sub>
+  <sub>Detection (dog 0.977) · Segmentation (mask overlay) · Keypoint (17 COCO kp) · rfdetr-base · CPU · 399 ms avg</sub>
 </div>
 
 ---

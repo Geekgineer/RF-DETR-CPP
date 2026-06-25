@@ -51,7 +51,9 @@ onnxruntime*/
 *.webm
 *.gif
 !data/dog.jpg
+!data/dog_rfdetr.jpg
 !data/cover.png
+!data/demo.gif
 
 # Logs and temporary files
 *.log
