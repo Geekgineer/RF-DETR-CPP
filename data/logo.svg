@@ -1,0 +1,127 @@
+<svg width="1280" height="420" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="60%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#161b22"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ea580c"/>
+      <stop offset="100%" stop-color="#fb923c"/>
+    </linearGradient>
+    <pattern id="grid" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M 44 0 L 0 0 0 44" fill="none" stroke="#ffffff" stroke-width="0.4" opacity="0.05"/>
+    </pattern>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="420" fill="url(#bgGrad)"/>
+  <rect width="1280" height="420" fill="url(#grid)"/>
+
+  <!-- Left accent bar -->
+  <rect x="0" y="0" width="5" height="420" fill="url(#orangeGrad)"/>
+
+  <!-- ── LEFT SIDE: Branding ── -->
+  <!-- "RF-DETR" white -->
+  <text x="72" y="192"
+        font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif"
+        font-size="90" font-weight="700" letter-spacing="-3" fill="white">RF-DETR</text>
+  <!-- "-CPP" orange -->
+  <text x="72" y="284"
+        font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif"
+        font-size="90" font-weight="700" letter-spacing="-3" fill="url(#orangeGrad)">-CPP</text>
+  <!-- Tagline -->
+  <text x="76" y="328"
+        font-family="'Segoe UI', Arial, sans-serif"
+        font-size="20" fill="#8b949e">C++ ONNX Runtime Inference Engine</text>
+  <!-- Sub-tagline -->
+  <text x="76" y="364"
+        font-family="'Segoe UI', Arial, sans-serif"
+        font-size="14" fill="#3d444d">CPU · CUDA · TensorRT  ·  Linux · Windows · macOS</text>
+
+  <!-- Separator -->
+  <line x1="650" y1="24" x2="650" y2="396" stroke="#21262d" stroke-width="1"/>
+
+  <!-- ── RIGHT SIDE: Detection visual ── -->
+
+  <!-- Outer detection box corners (orange) -->
+  <line x1="786" y1="76" x2="830" y2="76"  stroke="#f97316" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="786" y1="76" x2="786" y2="120" stroke="#f97316" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="1190" y1="76" x2="1146" y2="76"  stroke="#f97316" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="1190" y1="76" x2="1190" y2="120" stroke="#f97316" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="786" y1="344" x2="830" y2="344"  stroke="#f97316" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="786" y1="344" x2="786" y2="300" stroke="#f97316" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="1190" y1="344" x2="1146" y2="344"  stroke="#f97316" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="1190" y1="344" x2="1190" y2="300" stroke="#f97316" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Box outline (faint) -->
+  <rect x="786" y="76" width="404" height="268" rx="3" fill="none" stroke="#f97316" stroke-width="1" opacity="0.2"/>
+
+  <!-- Detection label -->
+  <rect x="786" y="50" width="126" height="28" rx="14" fill="#f97316" filter="url(#glow)"/>
+  <text x="849" y="69" text-anchor="middle"
+        font-family="'Courier New', Courier, monospace"
+        font-size="13" font-weight="600" fill="white">dog  0.977</text>
+
+  <!-- Segmentation mask overlay (blue) -->
+  <rect x="808" y="100" width="260" height="215" rx="6"
+        fill="#3b82f6" opacity="0.08"/>
+  <rect x="808" y="100" width="260" height="215" rx="6"
+        fill="none" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.55"/>
+  <!-- mask label -->
+  <rect x="808" y="76" width="78" height="24" rx="12" fill="#1e40af" opacity="0.85"/>
+  <text x="847" y="92" text-anchor="middle"
+        font-family="'Courier New', Courier, monospace"
+        font-size="11" fill="#93c5fd">▨  mask</text>
+
+  <!-- Keypoint skeleton (purple) -->
+  <!-- head -->
+  <circle cx="940" cy="136" r="6" fill="#c084fc" filter="url(#glow)"/>
+  <!-- neck to shoulders -->
+  <line x1="940" y1="136" x2="900" y2="178" stroke="#a855f7" stroke-width="1.8" opacity="0.7"/>
+  <line x1="940" y1="136" x2="980" y2="178" stroke="#a855f7" stroke-width="1.8" opacity="0.7"/>
+  <circle cx="900" cy="178" r="5" fill="#c084fc"/>
+  <circle cx="980" cy="178" r="5" fill="#c084fc"/>
+  <!-- torso -->
+  <line x1="900" y1="178" x2="940" y2="218" stroke="#a855f7" stroke-width="1.8" opacity="0.7"/>
+  <line x1="980" y1="178" x2="940" y2="218" stroke="#a855f7" stroke-width="1.8" opacity="0.7"/>
+  <!-- hips -->
+  <circle cx="920" cy="230" r="5" fill="#c084fc"/>
+  <circle cx="960" cy="230" r="5" fill="#c084fc"/>
+  <line x1="920" y1="230" x2="960" y2="230" stroke="#a855f7" stroke-width="1.8" opacity="0.7"/>
+  <!-- legs -->
+  <circle cx="908" cy="282" r="5" fill="#c084fc"/>
+  <circle cx="972" cy="282" r="5" fill="#c084fc"/>
+  <line x1="920" y1="230" x2="908" y2="282" stroke="#a855f7" stroke-width="1.8" opacity="0.7"/>
+  <line x1="960" y1="230" x2="972" y2="282" stroke="#a855f7" stroke-width="1.8" opacity="0.7"/>
+  <!-- kp label -->
+  <rect x="1060" y="52" width="130" height="24" rx="12" fill="#4c1d95" opacity="0.85"/>
+  <text x="1125" y="68" text-anchor="middle"
+        font-family="'Courier New', Courier, monospace"
+        font-size="11" fill="#d8b4fe">● 17 keypoints</text>
+
+  <!-- Task badges -->
+  <rect x="786" y="365" width="116" height="32" rx="16" fill="#0f2010" stroke="#22c55e" stroke-width="1.2"/>
+  <circle cx="812" cy="381" r="5" fill="#22c55e"/>
+  <text x="856" y="386" text-anchor="middle"
+        font-family="'Segoe UI', Arial, sans-serif"
+        font-size="13" font-weight="500" fill="#4ade80">detect</text>
+
+  <rect x="916" y="365" width="140" height="32" rx="16" fill="#0a0f2e" stroke="#3b82f6" stroke-width="1.2"/>
+  <circle cx="942" cy="381" r="5" fill="#3b82f6"/>
+  <text x="992" y="386" text-anchor="middle"
+        font-family="'Segoe UI', Arial, sans-serif"
+        font-size="13" font-weight="500" fill="#60a5fa">segment</text>
+
+  <rect x="1070" y="365" width="130" height="32" rx="16" fill="#1a0a2e" stroke="#a855f7" stroke-width="1.2"/>
+  <circle cx="1096" cy="381" r="5" fill="#a855f7"/>
+  <text x="1148" y="386" text-anchor="middle"
+        font-family="'Segoe UI', Arial, sans-serif"
+        font-size="13" font-weight="500" fill="#c084fc">keypoint</text>
+
+  <!-- Bottom bar -->
+  <rect x="0" y="416" width="1280" height="4" fill="url(#orangeGrad)"/>
+</svg>
