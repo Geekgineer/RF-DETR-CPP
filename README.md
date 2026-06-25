@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/Geekgineer/RF-DETR-CPP/main/data/logo.svg" alt="RF-DETR-CPP" width="100%"/>
+  <img src="data/logo.svg" alt="RF-DETR-CPP" width="100%"/>
 </div>
 
 <br/>
