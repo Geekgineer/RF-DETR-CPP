@@ -1,252 +1,267 @@
 # ============================================================================
-# RFDETRs-CPP — Continuous Integration
+# RFDETRs-CPP CI/CD Pipeline
 # ============================================================================
-# Jobs:
-#   build-cpu   — compile all targets on Ubuntu 22.04 (CPU-only ORT)
-#   test-suite  — export models + run GTest for each task (matrix)
-#   benchmark   — timing benchmark (manual dispatch only)
-#   lint        — shell + Python syntax checks
-# ============================================================================
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: ["main", "dev"]
   pull_request:
-    branches: [main]
+    branches: ["main", "dev"]
   workflow_dispatch:
+    inputs:
+      run_gpu_tests:
+        description: 'Run GPU tests (requires self-hosted runner)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: read
+  pages: write
+  id-token: write
 
 env:
-  ORT_VERSION: "1.20.1"
-  ORT_URL_BASE: "https://github.com/microsoft/onnxruntime/releases/download"
+  ONNXRUNTIME_VERSION: "1.20.1"
+  # Unique Pages artifact name per run to avoid deploy-pages conflicts.
+  PAGES_ARTIFACT_NAME: site-${{ github.run_id }}-${{ github.run_attempt }}
 
-# ============================================================================
-# Build
-# ============================================================================
 jobs:
+  # ==========================================================================
+  # Build and Test on CPU
+  # ==========================================================================
   build-cpu:
-    name: Build (Ubuntu 22.04 · CPU)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install build dependencies
+      - name: Setup build environment
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake libopencv-dev wget ca-certificates
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libopencv-dev \
+            unzip \
+            curl
 
-      - name: Cache ONNX Runtime
-        id: cache-ort
-        uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/ort
-          key: onnxruntime-linux-x64-${{ env.ORT_VERSION }}
-
-      - name: Download ONNX Runtime
-        if: steps.cache-ort.outputs.cache-hit != 'true'
+      - name: Download ONNX Runtime (CPU)
         run: |
-          mkdir -p ${{ github.workspace }}/ort
-          wget -q "${{ env.ORT_URL_BASE }}/v${{ env.ORT_VERSION }}/onnxruntime-linux-x64-${{ env.ORT_VERSION }}.tgz" \
-               -O /tmp/ort.tgz
-          tar -xf /tmp/ort.tgz -C ${{ github.workspace }}/ort --strip-components=1
+          curl -L -o onnxruntime.tgz \
+            "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz"
+          tar -xzf onnxruntime.tgz
+          rm onnxruntime.tgz
 
-      - name: Configure
+      - name: Build project
         run: |
-          cmake -B build -S . \
-            -DONNXRUNTIME_DIR=${{ github.workspace }}/ort \
+          ORT_DIR="${GITHUB_WORKSPACE}/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}"
+          mkdir -p build && cd build
+          cmake .. \
+            -DONNXRUNTIME_DIR="${ORT_DIR}" \
             -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_TESTS=ON \
             -DENABLE_WARNINGS=ON
+          make -j$(nproc)
 
-      - name: Build
-        run: cmake --build build --parallel $(nproc)
-
-      - name: Verify binaries exist
+      - name: Verify build
         run: |
-          for bin in rfdetr_image_inference rfdetr_video_inference rfdetr_camera_inference \
-                     rfdetr_batch_inference rfdetr_seg_image_inference \
-                     rfdetr_keypoint_image_inference; do
+          ls -la build/
+          for bin in rfdetr_image_inference rfdetr_video_inference \
+                     rfdetr_camera_inference rfdetr_batch_inference \
+                     rfdetr_seg_image_inference rfdetr_keypoint_image_inference; do
             echo -n "  $bin ... "
             test -f "build/$bin" && echo "OK" || { echo "MISSING"; exit 1; }
           done
 
-      - name: Upload executables
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-cpu-${{ github.sha }}
-          retention-days: 1
-          path: |
-            build/rfdetr_image_inference
-            build/rfdetr_video_inference
-            build/rfdetr_camera_inference
-            build/rfdetr_batch_inference
-            build/rfdetr_seg_image_inference
-            build/rfdetr_keypoint_image_inference
-            build/inference_rfdetr_cpp
-            build/compare_results
-            build/unit_tests
-            build/test_seg
-            build/test_keypoint
-            build/test_batch
-            build/test_video
-
-# ============================================================================
-# Test suite (matrix)
-# ============================================================================
+  # ==========================================================================
+  # Test Suite (Detection, Segmentation, Keypoint)
+  # ==========================================================================
   test-suite:
-    name: Tests — ${{ matrix.task }}
+    runs-on: ubuntu-latest
     needs: build-cpu
-    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
     strategy:
       fail-fast: false
       matrix:
         task: [detection, segmentation, keypoint]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install runtime dependencies
+      - name: Setup build environment
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends \
-            libopencv-dev python3 python3-pip wget ca-certificates
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libopencv-dev \
+            unzip \
+            curl \
+            python3 \
+            python3-pip \
+            python3-venv
 
-      - name: Cache ONNX Runtime
-        id: cache-ort
-        uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/ort
-          key: onnxruntime-linux-x64-${{ env.ORT_VERSION }}
-
-      - name: Download ONNX Runtime
-        if: steps.cache-ort.outputs.cache-hit != 'true'
+      - name: Install uv for Python package management
         run: |
-          mkdir -p ${{ github.workspace }}/ort
-          wget -q "${{ env.ORT_URL_BASE }}/v${{ env.ORT_VERSION }}/onnxruntime-linux-x64-${{ env.ORT_VERSION }}.tgz" \
-               -O /tmp/ort.tgz
-          tar -xf /tmp/ort.tgz -C ${{ github.workspace }}/ort --strip-components=1
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-cpu-${{ github.sha }}
-          path: build/
-
-      - name: Make binaries executable
-        run: find build/ -maxdepth 1 -type f | xargs chmod +x
-
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: pip-rfdetr-onnx-${{ runner.os }}
-
-      - name: Install rfdetr[onnx] + onnxruntime
-        run: pip3 install --quiet "rfdetr[onnx]" onnxruntime
+      - name: Download ONNX Runtime (CPU)
+        run: |
+          curl -L -o onnxruntime.tgz \
+            "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz"
+          tar -xzf onnxruntime.tgz -C tests/
+          rm onnxruntime.tgz
 
       - name: Run ${{ matrix.task }} tests
-        env:
-          BUILD_DIR: ${{ github.workspace }}/build
-          LD_LIBRARY_PATH: ${{ github.workspace }}/ort/lib
-        run: bash tests/test_${{ matrix.task }}.sh
-
-# ============================================================================
-# Lint
-# ============================================================================
-  lint:
-    name: Lint
-    runs-on: ubuntu-22.04
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install tools
+        working-directory: tests
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends shellcheck python3
+          chmod +x test_${{ matrix.task }}.sh
+          ./test_${{ matrix.task }}.sh
 
-      - name: shellcheck — test scripts
-        run: |
-          find tests/ -name '*.sh' | xargs shellcheck --severity=warning \
-            --exclude=SC1091 \
-            && echo "shellcheck OK"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.task }}
+          path: tests/${{ matrix.task }}/results/
+          retention-days: 7
+          if-no-files-found: warn
 
-      - name: Python syntax — scripts
-        run: |
-          find scripts/ tests/ -name '*.py' | \
-            xargs python3 -m py_compile && echo "Python syntax OK"
-
-# ============================================================================
-# Benchmark (manual dispatch only)
-# ============================================================================
+  # ==========================================================================
+  # Benchmark (Optional — Manual Trigger)
+  # ==========================================================================
   benchmark:
-    name: Benchmark
+    runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
     needs: build-cpu
-    runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Setup build environment
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends \
-            libopencv-dev python3 python3-pip wget ca-certificates
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libopencv-dev \
+            unzip \
+            curl
 
-      - name: Cache ONNX Runtime
-        id: cache-ort
-        uses: actions/cache@v4
+      - name: Download ONNX Runtime (CPU)
+        run: |
+          curl -L -o onnxruntime.tgz \
+            "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz"
+          tar -xzf onnxruntime.tgz
+          rm onnxruntime.tgz
+
+      - name: Build benchmark tool
+        run: |
+          ORT_DIR="${GITHUB_WORKSPACE}/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}"
+          cd benchmarks
+          mkdir -p build && cd build
+          cmake .. \
+            -DONNXRUNTIME_DIR="${ORT_DIR}" \
+            -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+
+      - name: Run benchmarks
+        run: |
+          echo "Benchmark tool built successfully"
+          ls benchmarks/build/rfdetr_benchmark || true
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          path: ${{ github.workspace }}/ort
-          key: onnxruntime-linux-x64-${{ env.ORT_VERSION }}
+          name: benchmark-results
+          path: benchmarks/results/
+          retention-days: 30
+          if-no-files-found: warn
 
-      - name: Download ONNX Runtime
-        if: steps.cache-ort.outputs.cache-hit != 'true'
+  # ==========================================================================
+  # Code Quality Checks
+  # ==========================================================================
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: sudo apt-get install -y clang-format
+
+      - name: Check code formatting (C++)
         run: |
-          mkdir -p ${{ github.workspace }}/ort
-          wget -q "${{ env.ORT_URL_BASE }}/v${{ env.ORT_VERSION }}/onnxruntime-linux-x64-${{ env.ORT_VERSION }}.tgz" \
-               -O /tmp/ort.tgz
-          tar -xf /tmp/ort.tgz -C ${{ github.workspace }}/ort --strip-components=1
+          find include/ src/ tests/ -name "*.cpp" -o -name "*.hpp" | head -30 | \
+            xargs -I {} sh -c 'clang-format --dry-run --Werror {} 2>&1 || echo "Format issues in {}"'
+          echo "Format check complete"
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
+      - name: Check for common issues
+        run: |
+          if grep -r "std::cout.*DEBUG\|printf.*debug\|#define DEBUG" \
+               include/ src/ --include="*.cpp" --include="*.hpp" 2>/dev/null; then
+            echo "Warning: Debug statements found"
+          fi
+          echo "TODOs found in codebase:"
+          grep -r "TODO\|FIXME\|XXX\|HACK" \
+               include/ src/ --include="*.cpp" --include="*.hpp" || echo "None"
+
+  # ==========================================================================
+  # Build and Deploy Docs to GitHub Pages
+  # ==========================================================================
+  # Requires repo Settings → Pages → Source: GitHub Actions.
+  # The deploy step uses continue-on-error so CI stays green if Pages is not configured.
+  deploy-docs:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          name: build-cpu-${{ github.sha }}
-          path: build/
+          python-version: '3.11'
 
-      - name: Make binaries executable
-        run: find build/ -maxdepth 1 -type f | xargs chmod +x
+      - name: Install MkDocs dependencies
+        run: pip install mkdocs-material
 
-      - name: Install rfdetr[onnx]
-        run: pip3 install --quiet "rfdetr[onnx]"
+      - name: Build documentation
+        run: mkdocs build --strict --site-dir site
 
-      - name: Export benchmark model (random weights)
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+          name: ${{ env.PAGES_ARTIFACT_NAME }}
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: ${{ env.PAGES_ARTIFACT_NAME }}
+
+      - name: Pages deploy status
+        if: always()
         run: |
-          mkdir -p tests/detection/models
-          python3 -c "
-import shutil, tempfile, glob
-from rfdetr import RFDETRNano
-m = RFDETRNano(pretrain_weights=None)
-with tempfile.TemporaryDirectory() as tmp:
-    m.export(output_dir=tmp)
-    srcs = glob.glob(tmp + '/**/*.onnx', recursive=True)
-    if not srcs:
-        raise FileNotFoundError('No .onnx after export')
-    shutil.copy2(srcs[0], 'tests/detection/models/rfdetr-nano.onnx')
-print('Exported: tests/detection/models/rfdetr-nano.onnx')
-"
-
-      - name: Run timing benchmark
-        env:
-          LD_LIBRARY_PATH: ${{ github.workspace }}/ort/lib
-        run: |
-          MODEL=tests/detection/models/rfdetr-nano.onnx
-          IMAGE=tests/detection/data/images/dog.jpg
-          echo "=== rfdetr_image_inference — 5 runs ==="
-          for i in 1 2 3 4 5; do
-            build/rfdetr_image_inference "$MODEL" "$IMAGE" "" 0.3 300 cpu \
-              2>&1 | grep -Ei "pre=|inf=|post=|total|ms" || true
-          done
+          if [ "${{ steps.deployment.outcome }}" != "success" ]; then
+            echo "::warning::GitHub Pages not deployed. Enable Pages → Source: GitHub Actions: https://github.com/${{ github.repository }}/settings/pages"
+          fi

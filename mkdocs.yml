@@ -1,0 +1,55 @@
+# MkDocs configuration for RFDETRs-CPP documentation
+
+site_name: RFDETRs-CPP
+site_description: Modern C++ RF-DETR Inference Library — detection, segmentation, and keypoint
+site_url: https://Geekgineer.github.io/RF-DETR-CPP
+repo_url: https://github.com/Geekgineer/RF-DETR-CPP
+repo_name: Geekgineer/RF-DETR-CPP
+
+copyright: Copyright &copy; 2026 Geekgineer
+
+theme:
+  name: material
+  language: en
+  palette:
+    - scheme: default
+      primary: deep orange
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep orange
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tooltips
+    - toc.integrate
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - API Reference: api.md
+  - Contributing: contributing.md

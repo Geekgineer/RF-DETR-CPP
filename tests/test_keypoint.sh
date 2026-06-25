@@ -1,69 +1,65 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # ============================================================================
-# RFDETRs-CPP — Keypoint structural tests (CI-aware)
+# RFDETRs-CPP Keypoint Structural Test Runner
 # ============================================================================
-# Exports a random-weight RFDETRKeypointPreview model if none is present in
-# tests/keypoint/models/, then runs the GTest structural test suite.
+# Steps:
+#   1. Install rfdetr[onnx] (via uv)
+#   2. Export RFDETRKeypointPreview (random weights) if no model present
+#   3. Build project (tests/build/)
+#   4. Run GTest structural tests (test_keypoint)
 #
-# COCO schema passed to the keypoint fixture: {0, 17}
+# COCO KeypointPreview schema used by the fixture: {0, 17}
 #   class 0 = background (0 keypoints)
 #   class 1 = person     (17 keypoints)
-#
-# Usage:
-#   bash tests/test_keypoint.sh [--build-dir /path/to/build]
 # ============================================================================
-set -euo pipefail
+set -e
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BUILD_DIR="${BUILD_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)/build}"
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+source "$SCRIPT_DIR/test_utils.sh"
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --build-dir) BUILD_DIR="$2"; shift 2 ;;
-        *) echo "Unknown arg: $1"; exit 1 ;;
-    esac
-done
+print_header "RFDETRs-CPP Keypoint Structural Tests"
 
-MODEL_DIR="$SCRIPT_DIR/keypoint/models"
-mkdir -p "$MODEL_DIR"
+# ============================================================================
+# Setup
+# ============================================================================
+cd "$SCRIPT_DIR/keypoint"
+echo "Working directory: $(pwd)"
 
-# -----------------------------------------------------------------------
-# Export keypoint model if absent (CI: random weights)
-# -----------------------------------------------------------------------
-if [[ -z "$(ls "$MODEL_DIR"/*.onnx 2>/dev/null || true)" ]]; then
-    echo "[CI] No keypoint model found — exporting RFDETRKeypointPreview (random weights)..."
-    python3 - "$MODEL_DIR" <<'PYEOF'
-import sys, shutil, tempfile, glob
-from rfdetr import RFDETRKeypointPreview
-out_dir = sys.argv[1]
-m = RFDETRKeypointPreview(pretrain_weights=None)
-with tempfile.TemporaryDirectory() as tmp:
-    m.export(output_dir=tmp)
-    srcs = glob.glob(tmp + '/**/*.onnx', recursive=True)
-    if not srcs:
-        raise FileNotFoundError('No .onnx produced by RFDETRKeypointPreview export')
-    shutil.copy2(srcs[0], out_dir + '/rfdetr-keypoint-preview.onnx')
-    print(f'Exported: {out_dir}/rfdetr-keypoint-preview.onnx')
-PYEOF
+# ============================================================================
+# Install Python dependencies
+# ============================================================================
+print_header "Installing Dependencies"
+install_uv
+install_python_packages "rfdetr[onnx]"
+
+# ============================================================================
+# Prepare model
+# ============================================================================
+print_header "Preparing Models"
+mkdir -p models
+
+if [[ -z "$(ls models/*.onnx 2>/dev/null || true)" ]]; then
+    echo "No keypoint model found — exporting RFDETRKeypointPreview (random weights)..."
+    export_rfdetr_model "RFDETRKeypointPreview" "models/rfdetr-keypoint-preview.onnx"
+else
+    echo -e "${GREEN}Keypoint model already present in models/${NC}"
 fi
 
-# -----------------------------------------------------------------------
-# Run GTest structural tests
-# -----------------------------------------------------------------------
-echo ""
-echo "================================================================"
-echo "  RF-DETR Keypoint Structural Tests"
-echo "================================================================"
+# ============================================================================
+# Build test suite
+# ============================================================================
+print_header "Building Test Suite"
+cd "$SCRIPT_DIR"
+./build_test.sh
 
-if [[ ! -x "$BUILD_DIR/test_keypoint" ]]; then
-    echo "[ERROR] test_keypoint not found in $BUILD_DIR"
-    echo "  Rebuild with: cmake .. -DBUILD_TESTS=ON && make -j\$(nproc)"
+# ============================================================================
+# Run GTest structural tests
+# ============================================================================
+print_header "Running Keypoint GTests"
+if [[ ! -x "$SCRIPT_DIR/build/test_keypoint" ]]; then
+    print_error "test_keypoint not found in tests/build/"
     exit 1
 fi
+"$SCRIPT_DIR/build/test_keypoint" --gtest_color=yes
 
-"$BUILD_DIR/test_keypoint" --gtest_color=yes
-
-echo ""
-echo "================================================================"
-echo "  Keypoint tests PASSED."
-echo "================================================================"
+print_success "Keypoint tests completed!"

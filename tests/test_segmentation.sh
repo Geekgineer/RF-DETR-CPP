@@ -1,65 +1,61 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # ============================================================================
-# RFDETRs-CPP — Segmentation structural tests (CI-aware)
+# RFDETRs-CPP Segmentation Structural Test Runner
 # ============================================================================
-# Exports a random-weight RFDETRSegNano model if none is present in
-# tests/segmentation/models/, then runs the GTest structural test suite.
-#
-# Usage:
-#   bash tests/test_segmentation.sh [--build-dir /path/to/build]
+# Steps:
+#   1. Install rfdetr[onnx] (via uv)
+#   2. Export RFDETRSegNano (random weights) if no model present
+#   3. Build project (tests/build/)
+#   4. Run GTest structural tests (test_seg)
 # ============================================================================
-set -euo pipefail
+set -e
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BUILD_DIR="${BUILD_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)/build}"
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+source "$SCRIPT_DIR/test_utils.sh"
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --build-dir) BUILD_DIR="$2"; shift 2 ;;
-        *) echo "Unknown arg: $1"; exit 1 ;;
-    esac
-done
+print_header "RFDETRs-CPP Segmentation Structural Tests"
 
-MODEL_DIR="$SCRIPT_DIR/segmentation/models"
-mkdir -p "$MODEL_DIR"
+# ============================================================================
+# Setup
+# ============================================================================
+cd "$SCRIPT_DIR/segmentation"
+echo "Working directory: $(pwd)"
 
-# -----------------------------------------------------------------------
-# Export segmentation model if absent (CI: random weights)
-# -----------------------------------------------------------------------
-if [[ -z "$(ls "$MODEL_DIR"/*.onnx 2>/dev/null || true)" ]]; then
-    echo "[CI] No seg model found — exporting RFDETRSegNano (random weights)..."
-    python3 - "$MODEL_DIR" <<'PYEOF'
-import sys, shutil, tempfile, glob
-from rfdetr import RFDETRSegNano
-out_dir = sys.argv[1]
-m = RFDETRSegNano(pretrain_weights=None)
-with tempfile.TemporaryDirectory() as tmp:
-    m.export(output_dir=tmp)
-    srcs = glob.glob(tmp + '/**/*.onnx', recursive=True)
-    if not srcs:
-        raise FileNotFoundError('No .onnx produced by RFDETRSegNano export')
-    shutil.copy2(srcs[0], out_dir + '/rfdetr-seg-nano.onnx')
-    print(f'Exported: {out_dir}/rfdetr-seg-nano.onnx')
-PYEOF
+# ============================================================================
+# Install Python dependencies
+# ============================================================================
+print_header "Installing Dependencies"
+install_uv
+install_python_packages "rfdetr[onnx]"
+
+# ============================================================================
+# Prepare model
+# ============================================================================
+print_header "Preparing Models"
+mkdir -p models
+
+if [[ -z "$(ls models/*.onnx 2>/dev/null || true)" ]]; then
+    echo "No seg model found — exporting RFDETRSegNano (random weights)..."
+    export_rfdetr_model "RFDETRSegNano" "models/rfdetr-seg-nano.onnx"
+else
+    echo -e "${GREEN}Seg model already present in models/${NC}"
 fi
 
-# -----------------------------------------------------------------------
-# Run GTest structural tests
-# -----------------------------------------------------------------------
-echo ""
-echo "================================================================"
-echo "  RF-DETR Segmentation Structural Tests"
-echo "================================================================"
+# ============================================================================
+# Build test suite
+# ============================================================================
+print_header "Building Test Suite"
+cd "$SCRIPT_DIR"
+./build_test.sh
 
-if [[ ! -x "$BUILD_DIR/test_seg" ]]; then
-    echo "[ERROR] test_seg not found in $BUILD_DIR"
-    echo "  Rebuild with: cmake .. -DBUILD_TESTS=ON && make -j\$(nproc)"
+# ============================================================================
+# Run GTest structural tests
+# ============================================================================
+print_header "Running Segmentation GTests"
+if [[ ! -x "$SCRIPT_DIR/build/test_seg" ]]; then
+    print_error "test_seg not found in tests/build/"
     exit 1
 fi
+"$SCRIPT_DIR/build/test_seg" --gtest_color=yes
 
-"$BUILD_DIR/test_seg" --gtest_color=yes
-
-echo ""
-echo "================================================================"
-echo "  Segmentation tests PASSED."
-echo "================================================================"
+print_success "Segmentation tests completed!"
