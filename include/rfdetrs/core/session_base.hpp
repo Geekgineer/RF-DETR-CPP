@@ -199,27 +199,53 @@ private:
         inputShape_ = cv::Size(static_cast<int>(inputShape[3]),
                                static_cast<int>(inputShape[2]));
 
-        // Identify box output (last dim == 4) and logit output (last dim > 4)
+        // Identify box output ("dets", last-dim==4) and logit output ("labels"/"logits").
+        // Strategy: name-based pass first, then shape-based fallback.
+        // The "keypoints" output has last-dim==8 which would otherwise be mis-identified
+        // as the logit output for models with few classes (e.g. keypoint model: 2 classes).
         boxOutputIdx_   = -1;
         logitOutputIdx_ = -1;
+
+        // Pass 1: name-based identification
         for (size_t i = 0; i < numOutputNodes_; ++i) {
+            const std::string& name = outputNames_[i];
             auto outTypeInfo = session_.GetOutputTypeInfo(i);
             auto shape = outTypeInfo.GetTensorTypeAndShapeInfo().GetShape();
-            if (shape.size() >= 3) {
-                int64_t lastDim = shape.back();
-                if (lastDim == 4 && boxOutputIdx_ == -1) {
-                    boxOutputIdx_ = static_cast<int>(i);
-                    numQueries_   = static_cast<int>(shape[shape.size() - 2]);
-                } else if (lastDim > 4 && logitOutputIdx_ == -1) {
-                    logitOutputIdx_ = static_cast<int>(i);
-                    numClasses_     = static_cast<int>(lastDim);
-                }
+            if (shape.size() < 3) continue;
+            int64_t lastDim = shape.back();
+            if (name == "dets" && boxOutputIdx_ == -1 && lastDim == 4) {
+                boxOutputIdx_ = static_cast<int>(i);
+                numQueries_   = static_cast<int>(shape[shape.size() - 2]);
+            } else if ((name == "labels" || name == "logits") && logitOutputIdx_ == -1) {
+                logitOutputIdx_ = static_cast<int>(i);
+                numClasses_     = static_cast<int>(lastDim);
             }
         }
+
+        // Pass 2: shape-based fallback (non-standard output names)
+        for (size_t i = 0; i < numOutputNodes_; ++i) {
+            const std::string& name = outputNames_[i];
+            // Never mis-identify keypoints/masks outputs as boxes or logits
+            if (name == "keypoints" || name == "masks") continue;
+            if (static_cast<int>(i) == boxOutputIdx_ ||
+                static_cast<int>(i) == logitOutputIdx_) continue;
+            auto outTypeInfo = session_.GetOutputTypeInfo(i);
+            auto shape = outTypeInfo.GetTensorTypeAndShapeInfo().GetShape();
+            if (shape.size() < 3) continue;
+            int64_t lastDim = shape.back();
+            if (lastDim == 4 && boxOutputIdx_ == -1) {
+                boxOutputIdx_ = static_cast<int>(i);
+                numQueries_   = static_cast<int>(shape[shape.size() - 2]);
+            } else if (lastDim > 4 && logitOutputIdx_ == -1) {
+                logitOutputIdx_ = static_cast<int>(i);
+                numClasses_     = static_cast<int>(lastDim);
+            }
+        }
+
         if (boxOutputIdx_ == -1 || logitOutputIdx_ == -1)
             throw std::runtime_error(
                 "Cannot identify box/logit outputs. "
-                "Expected one output with last-dim==4 (dets) and one with last-dim>4 (labels).");
+                "Expected outputs named 'dets'/'labels' or shaped [N,4]/[N,C>4].");
 
         // Identify optional 3rd outputs (segmentation masks or keypoints) by name.
         for (size_t i = 0; i < numOutputNodes_; ++i) {

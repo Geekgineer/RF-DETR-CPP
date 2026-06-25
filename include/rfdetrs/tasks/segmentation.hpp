@@ -116,11 +116,14 @@ public:
             if (d.classId < 0) continue;
             const cv::Scalar& color = classColors_[d.classId % classColors_.size()];
 
-            // Overlay mask
+            // Overlay mask: blend colour only where mask is active.
+            // addWeighted on the full image then copyTo(mask) keeps pixels
+            // outside the mask untouched.
             if (!d.mask.empty() && d.mask.size() == image.size()) {
                 cv::Mat colored(image.size(), CV_8UC3, color);
-                colored.copyTo(image, d.mask);
-                cv::addWeighted(image, 1.0 - maskAlpha, colored, maskAlpha, 0, image);
+                cv::Mat blended;
+                cv::addWeighted(image, 1.0 - maskAlpha, colored, maskAlpha, 0, blended);
+                blended.copyTo(image, d.mask);
             }
 
             std::string label = (d.classId < static_cast<int>(classNames_.size()))
