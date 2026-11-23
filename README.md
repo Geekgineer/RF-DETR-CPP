@@ -25,7 +25,7 @@
 
 ## What is RF-DETR-CPP?
 
-**RFDETRs-CPP** is a header-only C++ inference library for [RF-DETR](https://github.com/roboflow/rf-detr) — Roboflow's real-time, transformer-based object detector that achieves state-of-the-art COCO accuracy with DINOv2 Vision Transformer features and DETR-style set-prediction.
+**RF-DETR-CPP** is a header-only C++ inference library for [RF-DETR](https://github.com/roboflow/rf-detr) — Roboflow's real-time, transformer-based object detector that achieves state-of-the-art COCO accuracy with DINOv2 Vision Transformer features and DETR-style set-prediction.
 
 One `#include` gives you a production-ready pipeline for all three RF-DETR task families:
 
@@ -466,7 +466,7 @@ RF-DETR detection models (Nano · Small · Base · Medium · Large) are released
 
 <div align="center">
 
-**[⭐ Star this repo](https://github.com/Geekgineer/RF-DETR-CPP/stargazers)** if RFDETRs-CPP saves you time.  
+**[⭐ Star this repo](https://github.com/Geekgineer/RF-DETR-CPP/stargazers)** if RF-DETR-CPP saves you time.  
 Issues, PRs, and benchmarks from new hardware are very welcome.
 
 </div>
